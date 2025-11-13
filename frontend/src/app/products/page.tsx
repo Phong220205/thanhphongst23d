@@ -1,6 +1,12 @@
 // frontend/src/app/products/page.tsx
 import { ProductCard } from "@/components/ProductCard";
 import { Suspense } from "react";
+import { getApiUrl } from "@/lib/server-api";
+import { ProductsFilter } from "./_components/ProductsFilter";
+
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 // --- Định nghĩa kiểu dữ liệu ---
 interface ProductVariant {
@@ -11,9 +17,13 @@ interface Product {
 }
 
 // --- Hàm gọi API lấy TẤT CẢ sản phẩm (ĐÃ BẬT LẠI) ---
-async function getAllProducts(): Promise<Product[]> {
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_SERVER || 'http://backend:5000';
-    const apiUrl = `${backendUrl}/api/products`; // Lấy hết sản phẩm
+async function getAllProducts(searchParams?: { search?: string; category?: string }): Promise<Product[]> {
+    const params = new URLSearchParams();
+    if (searchParams?.search) params.set('search', searchParams.search);
+    if (searchParams?.category) params.set('categoryId', searchParams.category);
+    params.set('limit', '100'); // Get more products for filtering
+    
+    const apiUrl = getApiUrl(`/products?${params.toString()}`);
     console.log(`Fetching ALL products from: ${apiUrl}`);
 
     try {
@@ -38,8 +48,8 @@ async function getAllProducts(): Promise<Product[]> {
 }
 
 // --- Component ProductList (Giữ nguyên) ---
-async function AllProductList() {
-    const products = await getAllProducts();
+async function AllProductList({ searchParams }: { searchParams?: { search?: string; category?: string } }) {
+    const products = await getAllProducts(searchParams);
     if (!products || products.length === 0) {
         return <p className="text-center text-lg text-gray-500 py-10">Hiện không có sản phẩm nào.</p>
     }
@@ -53,14 +63,19 @@ async function AllProductList() {
 }
 
 // --- Trang Sản phẩm (Page - Giữ nguyên) ---
-export default function ProductsPage() {
+export default function ProductsPage(props: { 
+  searchParams?: { search?: string; category?: string }
+}) {
+    const searchParams = props.searchParams || {};
+    
     return (
         <main className="container mx-auto max-w-7xl px-4 py-8">
             <h1 className="mb-8 text-3xl font-bold tracking-tight text-gray-900 text-center sm:text-4xl">
                 Tất cả sản phẩm
             </h1>
+            <ProductsFilter />
             <Suspense fallback={<ProductGridSkeleton />}>
-                <AllProductList />
+                <AllProductList searchParams={searchParams} />
             </Suspense>
         </main>
     );

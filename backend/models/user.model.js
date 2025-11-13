@@ -10,6 +10,12 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: 'userId',
         as: 'orders'
       });
+      
+      // Một User có nhiều Reviews
+      User.hasMany(models.Review, {
+        foreignKey: 'userId',
+        as: 'reviews'
+      });
     }
   }
   User.init({
