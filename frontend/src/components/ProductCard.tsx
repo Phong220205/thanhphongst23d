@@ -55,42 +55,58 @@ export function ProductCard({ product }: ProductCardProps) {
   };
 
   return (
-    <div className="group relative overflow-hidden rounded-lg border bg-white shadow-sm transition-all hover:shadow-lg">
-      <Link href={`/product/${product.id}`} className="block">
-        <div className="aspect-h-4 aspect-w-3 overflow-hidden bg-gray-100">
+    <div className="group relative overflow-hidden rounded-2xl bg-white shadow-sm border border-gray-100 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+      <Link href={`/products/${product.id}`} className="block">
+        <div className="aspect-h-4 aspect-w-3 overflow-hidden bg-gradient-to-br from-gray-100 to-gray-50 relative">
           <Image
-            // Sử dụng ảnh của defaultVariant, có fallback
             src={defaultVariant.image || '/placeholder-image.jpg'}
             alt={product.name}
             width={400}
             height={500}
-            className="h-full w-full object-cover transition-transform group-hover:scale-105"
-            // Thêm onError để xử lý nếu ảnh lỗi
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
             onError={(e) => { e.currentTarget.src = '/placeholder-image.jpg'; }}
           />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          {defaultVariant.stock === 0 && (
+            <div className="absolute top-3 right-3 bg-red-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
+              Hết hàng
+            </div>
+          )}
         </div>
-        <div className="p-4">
-          {/* Hiển thị brand nếu có */}
-          {product.brand && <p className="text-sm text-gray-500">{product.brand}</p>}
-          <h3 className="truncate text-lg font-semibold text-gray-900">
+        <div className="p-5">
+          {product.brand && (
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+              {product.brand}
+            </p>
+          )}
+          <h3 className="text-base font-bold text-gray-900 line-clamp-2 mb-2 group-hover:text-indigo-600 transition-colors">
             {product.name}
           </h3>
-          {/* Hiển thị giá của defaultVariant */}
-          <p className="mt-2 text-base font-bold text-indigo-600">
-            {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(defaultVariant.price)}
-          </p>
+          <div className="flex items-baseline justify-between">
+            <p className="text-lg font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+              {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(defaultVariant.price)}
+            </p>
+          </div>
         </div>
       </Link>
 
       {/* Nút thêm vào giỏ */}
-      <div className="border-t px-4 pb-4 pt-2"> {/* Điều chỉnh padding */}
+      <div className="px-5 pb-5">
         <button
           onClick={handleAddToCart}
-          // Disable nút nếu stock = 0
           disabled={!defaultVariant || defaultVariant.stock === 0}
-          className="w-full rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-400"
+          className="w-full rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-all duration-200 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-400 disabled:hover:scale-100"
         >
-          {defaultVariant && defaultVariant.stock > 0 ? 'Thêm vào giỏ' : 'Hết hàng'}
+          {defaultVariant && defaultVariant.stock > 0 ? (
+            <span className="flex items-center justify-center gap-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              Thêm vào giỏ
+            </span>
+          ) : (
+            'Hết hàng'
+          )}
         </button>
       </div>
     </div>

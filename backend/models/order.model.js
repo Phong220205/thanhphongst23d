@@ -20,7 +20,8 @@ module.exports = (sequelize, DataTypes) => {
     userId: DataTypes.INTEGER,
     total: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
     status: { type: DataTypes.STRING, allowNull: false, defaultValue: 'pending' },
-    paymentMethod: DataTypes.STRING
+    paymentMethod: DataTypes.STRING,
+    shippingAddress: DataTypes.TEXT
   }, {
     sequelize,
     modelName: 'Order',

@@ -55,7 +55,19 @@ exports.getAllProducts = async (req, res, next) => {
 // Lấy 1 sản phẩm CHI TIẾT
 exports.getProductById = async (req, res, next) => {
   try {
-    const product = await Product.findByPk(req.params.id, {
+    const productId = parseInt(req.params.id, 10);
+    
+    // Validate product ID
+    if (isNaN(productId) || productId <= 0) {
+      return res.status(400).json({ 
+        status: 'error',
+        message: 'ID sản phẩm không hợp lệ' 
+      });
+    }
+    
+    console.log(`[Product Controller] Fetching product with ID: ${productId}`);
+    
+    const product = await Product.findByPk(productId, {
       include: [
         { model: Category, as: 'category' },
         { 
@@ -66,10 +78,17 @@ exports.getProductById = async (req, res, next) => {
     });
     
     if (!product) {
-      return res.status(404).json({ message: 'Không tìm thấy sản phẩm' });
+      console.log(`[Product Controller] Product with ID ${productId} not found`);
+      return res.status(404).json({ 
+        status: 'error',
+        message: 'Không tìm thấy sản phẩm' 
+      });
     }
+    
+    console.log(`[Product Controller] Product found: ${product.name} (ID: ${product.id})`);
     res.status(200).json({ status: 'success', data: product });
   } catch (error) {
+    console.error('[Product Controller] Error fetching product:', error);
     next(error);
   }
 };
@@ -123,4 +142,88 @@ exports.createProduct = async (req, res, next) => {
   }
 };
 
-// (Code cho Update/Delete Product sẽ tương tự, cần xử lý cả variants)
+// [ADMIN] Cập nhật sản phẩm
+exports.updateProduct = async (req, res, next) => {
+  const t = await db.sequelize.transaction();
+  try {
+    const { id } = req.params;
+    const { name, description, brand, categoryId, variants } = req.body;
+
+    const product = await Product.findByPk(id, { transaction: t });
+    if (!product) {
+      await t.rollback();
+      return res.status(404).json({ message: 'Không tìm thấy sản phẩm' });
+    }
+
+    // Cập nhật thông tin sản phẩm
+    await product.update({
+      name: name || product.name,
+      description: description !== undefined ? description : product.description,
+      brand: brand || product.brand,
+      categoryId: categoryId || product.categoryId
+    }, { transaction: t });
+
+    // Nếu có variants mới, cập nhật chúng
+    if (variants && Array.isArray(variants)) {
+      // Xóa các variants cũ
+      await ProductVariant.destroy({
+        where: { productId: id },
+        transaction: t
+      });
+
+      // Tạo lại variants mới
+      if (variants.length > 0) {
+        const variantsWithProductId = variants.map(v => ({
+          ...v,
+          productId: id
+        }));
+        await ProductVariant.bulkCreate(variantsWithProductId, { transaction: t });
+      }
+    }
+
+    await t.commit();
+
+    // Lấy lại data đầy đủ
+    const updatedProduct = await Product.findByPk(id, {
+      include: [
+        { model: Category, as: 'category' },
+        { model: ProductVariant, as: 'variants' }
+      ]
+    });
+
+    res.status(200).json({ status: 'success', data: updatedProduct });
+  } catch (error) {
+    await t.rollback();
+    next(error);
+  }
+};
+
+// [ADMIN] Xóa sản phẩm
+exports.deleteProduct = async (req, res, next) => {
+  const t = await db.sequelize.transaction();
+  try {
+    const { id } = req.params;
+
+    const product = await Product.findByPk(id, { transaction: t });
+    if (!product) {
+      await t.rollback();
+      return res.status(404).json({ message: 'Không tìm thấy sản phẩm' });
+    }
+
+    // Xóa variants trước (do foreign key constraint)
+    await ProductVariant.destroy({
+      where: { productId: id },
+      transaction: t
+    });
+
+    // Xóa sản phẩm
+    await product.destroy({ transaction: t });
+
+    await t.commit();
+
+    res.status(200).json({ status: 'success', message: 'Sản phẩm đã được xóa thành công' });
+  } catch (error) {
+    await t.rollback();
+    next(error);
+  }
+};

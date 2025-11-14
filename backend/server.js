@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -57,15 +58,90 @@ app.get('/', (req, res) => {
 });
 
 // === Error Handler ===
-// app.use(errorHandler);
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  
+  // Sequelize errors
+  if (err.name === 'SequelizeValidationError') {
+    return res.status(400).json({
+      status: 'error',
+      message: 'Dữ liệu không hợp lệ',
+      errors: err.errors?.map(e => e.message)
+    });
+  }
+  
+  if (err.name === 'SequelizeUniqueConstraintError') {
+    return res.status(400).json({
+      status: 'error',
+      message: 'Dữ liệu đã tồn tại'
+    });
+  }
+  
+  if (err.name === 'SequelizeDatabaseError') {
+    return res.status(500).json({
+      status: 'error',
+      message: 'Lỗi cơ sở dữ liệu'
+    });
+  }
+  
+  if (err.name === 'SequelizeConnectionRefusedError' || err.name === 'SequelizeConnectionError') {
+    return res.status(500).json({
+      status: 'error',
+      message: 'Không thể kết nối đến cơ sở dữ liệu',
+      ...(process.env.NODE_ENV === 'development' && { 
+        details: err.message,
+        hint: 'Kiểm tra DB_HOST và đảm bảo database service đang chạy'
+      })
+    });
+  }
+  
+  // JWT errors
+  if (err.name === 'JsonWebTokenError') {
+    return res.status(401).json({
+      status: 'error',
+      message: 'Token không hợp lệ'
+    });
+  }
+  
+  if (err.name === 'TokenExpiredError') {
+    return res.status(401).json({
+      status: 'error',
+      message: 'Token đã hết hạn'
+    });
+  }
+  
+  // Default error
+  res.status(err.status || 500).json({
+    status: 'error',
+    message: err.message || 'Có lỗi xảy ra trên server',
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+  });
+});
 
 // === Start Server & Sync DB ===
 app.listen(PORT, async () => {
   console.log(`Backend server is running on http://localhost:${PORT}`);
+  
+  // Check required environment variables
+  if (!process.env.JWT_SECRET) {
+    console.warn('⚠️  WARNING: JWT_SECRET is not set. Authentication will not work properly.');
+  }
+  
   try {
     await db.sequelize.authenticate();
-    console.log('Database connected successfully.'); // <-- CHÚ Ý DÒNG NÀY
+    console.log('✅ Database connected successfully.');
+    const dbConfig = db.sequelize.config || {};
+    console.log(`   Host: ${process.env.DB_HOST || dbConfig.host || 'N/A'}`);
+    console.log(`   Database: ${process.env.DB_NAME || dbConfig.database || 'N/A'}`);
   } catch (error) {
-    console.error('Unable to connect to the database:', error);
+    console.error('❌ Unable to connect to the database:', error.message);
+    if (error.name === 'SequelizeConnectionRefusedError') {
+      console.error('   This usually means:');
+      console.error('   1. The database server is not running');
+      console.error('   2. The DB_HOST environment variable is incorrect');
+      console.error(`   3. Current DB_HOST: ${process.env.DB_HOST || 'not set (using config.json)'}`);
+      console.error(`   4. Current DB_PORT: ${process.env.DB_PORT || 'not set (using config.json)'}`);
+    }
+    // Don't exit the process, let it continue so the API can still respond with proper error messages
   }
 });

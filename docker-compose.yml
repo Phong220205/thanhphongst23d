@@ -1,8 +1,29 @@
 # Xóa dòng version ở đây nếu muốn
-# version: '3.8' 
+# version: '3.8'
 
 services:
-  # 1. Backend Service (Node.js + Express)
+  # 1. Database Service (MySQL)
+  db:
+    image: mysql:8.0
+    container_name: cd_store_db
+    restart: unless-stopped
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_ROOT_PASSWORD: ${DB_PASS} # Chỉ giữ lại 2 dòng này
+    volumes:
+      - db-data:/var/lib/mysql
+    networks:
+      - cd-store-network
+    # Healthcheck để Backend chờ
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost", "-uroot", "-p${DB_PASS}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 2. Backend Service (Node.js + Express)
   backend:
     build:
       context: ./backend
@@ -17,16 +38,25 @@ services:
     env_file: ./.env
     environment:
       - DB_HOST=db # Trỏ đến service 'db'
+      - DB_NAME=${DB_NAME:-cd_store}
+      - DB_USER=${DB_USER:-root}
+      - DB_PASS=${DB_PASS}
+      - DB_PORT=3306
       - NODE_ENV=development
-    # --- ĐÃ SỬA KHỐI NÀY ---
+    # Đợi DB "khỏe" mới chạy
     depends_on:
-      db: # Tên service
-        condition: service_healthy # Đợi cho đến khi healthcheck báo OK
-    # --- HẾT KHỐI SỬA ---
+      db:
+        condition: service_healthy
+    # Healthcheck để Frontend chờ
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - cd-store-network
 
-  # 2. Frontend Service (Next.js)
+  # 3. Frontend Service (Next.js)
   frontend:
     build:
       context: ./frontend
@@ -36,35 +66,21 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./frontend:/app
+      # --- VÔ HIỆU HÓA DÒNG NÀY ĐỂ SỬA LỖI SYNC CODE CŨ ---
+      # - ./frontend:/app 
       - /app/node_modules
       - /app/.next
+    env_file: ./.env # Thêm env_file cho frontend
     environment:
       - NODE_ENV=development
+      # Biến này để Server Component gọi API (dùng http://host.docker.internal)
+      - NEXT_PUBLIC_BACKEND_URL_SERVER=http://host.docker.internal:5000
+    # Đợi Backend "khỏe" mới chạy
+    depends_on:
+      backend:
+        condition: service_healthy
     networks:
       - cd-store-network
-
-  # 3. Database Service (MySQL)
-  db:
-    image: mysql:8.0
-    container_name: cd_store_db
-    restart: unless-stopped
-    ports:
-      - "3306:3306"
-    environment:
-      MYSQL_DATABASE: ${DB_NAME}
-      MYSQL_ROOT_PASSWORD: ${DB_PASS} # Chỉ giữ lại 2 dòng này
-    volumes:
-      - db-data:/var/lib/mysql
-    networks:
-      - cd-store-network
-    # --- ĐÃ THÊM KHỐI NÀY ---
-    healthcheck:
-      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost", "-u$$MYSQL_USER", "-p$$MYSQL_ROOT_PASSWORD"] # Kiểm tra kết nối DB
-      interval: 10s # Kiểm tra mỗi 10 giây
-      timeout: 5s # Chờ tối đa 5 giây
-      retries: 5 # Thử lại 5 lần nếu thất bại
-    # --- HẾT KHỐI THÊM ---
 
   # 4. phpMyAdmin Service
   phpmyadmin:

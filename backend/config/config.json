@@ -1,9 +1,9 @@
 {
   "development": {
     "username": "root",
-    "password": "123456",
+    "password": "hungdz210250",
     "database": "cd_store",
-    "host": "db",
+    "host": "localhost",
     "dialect": "mysql"
   },
   "test": {

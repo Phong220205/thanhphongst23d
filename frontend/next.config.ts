@@ -14,14 +14,20 @@ const nextConfig = {
         port: '',
         pathname: '/photos/**',
       },
-      // --- THÊM KHỐI UNIQLO NÀY ---
+      // --- THÊM 2 KHỐI NÀY ---
       {
         protocol: 'https',
-        hostname: 'image.uniqlo.com', // Tên miền chính xác
+        hostname: 'image.uniqlo.com', // Cho phép domain Uniqlo
         port: '',
-        pathname: '/UQ/ST3/AsianCommon/imagesgoods/**', // Dùng path chung nhất
+        pathname: '/**', // Cho phép mọi đường dẫn con
       },
-      // --- HẾT KHỐI UNIQLO ---
+      {
+        protocol: 'https',
+        hostname: 'cdn.hstatic.net', // Cho phép domain hstatic (bạn gửi link áo sơ mi/quần)
+        port: '',
+        pathname: '/**', // Cho phép mọi đường dẫn con
+      },
+      // --- HẾT THÊM ---
       {
         protocol: 'https',
         hostname: 'picsum.photos', 
@@ -33,3 +39,4 @@ const nextConfig = {
 };
 
 export default nextConfig;
+

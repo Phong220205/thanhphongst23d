@@ -14,6 +14,12 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: 'productId',
         as: 'variants'
       });
+      
+      // Một Product có nhiều Reviews
+      Product.hasMany(models.Review, {
+        foreignKey: 'productId',
+        as: 'reviews'
+      });
     }
   }
   Product.init({
