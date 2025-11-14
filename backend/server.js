@@ -84,6 +84,17 @@ app.use((err, req, res, next) => {
     });
   }
   
+  if (err.name === 'SequelizeConnectionRefusedError' || err.name === 'SequelizeConnectionError') {
+    return res.status(500).json({
+      status: 'error',
+      message: 'Không thể kết nối đến cơ sở dữ liệu',
+      ...(process.env.NODE_ENV === 'development' && { 
+        details: err.message,
+        hint: 'Kiểm tra DB_HOST và đảm bảo database service đang chạy'
+      })
+    });
+  }
+  
   // JWT errors
   if (err.name === 'JsonWebTokenError') {
     return res.status(401).json({
@@ -119,7 +130,18 @@ app.listen(PORT, async () => {
   try {
     await db.sequelize.authenticate();
     console.log('✅ Database connected successfully.');
+    const dbConfig = db.sequelize.config || {};
+    console.log(`   Host: ${process.env.DB_HOST || dbConfig.host || 'N/A'}`);
+    console.log(`   Database: ${process.env.DB_NAME || dbConfig.database || 'N/A'}`);
   } catch (error) {
-    console.error('❌ Unable to connect to the database:', error);
+    console.error('❌ Unable to connect to the database:', error.message);
+    if (error.name === 'SequelizeConnectionRefusedError') {
+      console.error('   This usually means:');
+      console.error('   1. The database server is not running');
+      console.error('   2. The DB_HOST environment variable is incorrect');
+      console.error(`   3. Current DB_HOST: ${process.env.DB_HOST || 'not set (using config.json)'}`);
+      console.error(`   4. Current DB_PORT: ${process.env.DB_PORT || 'not set (using config.json)'}`);
+    }
+    // Don't exit the process, let it continue so the API can still respond with proper error messages
   }
 });

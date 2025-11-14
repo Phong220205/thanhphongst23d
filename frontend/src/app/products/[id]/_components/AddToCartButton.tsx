@@ -23,9 +23,10 @@ interface Product {
 
 interface Props {
     product: Product;
+    onVariantChange?: (variant: ProductVariant | null) => void;
 }
 
-export default function AddToCartButton({ product }: Props) {
+export default function AddToCartButton({ product, onVariantChange }: Props) {
     const addItem = useCartStore((state) => state.addItem);
 
     // Lấy variant mặc định (variant đầu tiên)
@@ -41,56 +42,125 @@ export default function AddToCartButton({ product }: Props) {
 
     // Lấy danh sách size và màu duy nhất từ các biến thể
     const uniqueSizes = Array.from(new Set(product.variants.map(v => v.size))).filter(Boolean);
-    const uniqueColors = Array.from(new Set(product.variants.map(v => v.color))).filter(Boolean);
+    
+    // Lấy danh sách màu khả dụng cho size đã chọn (hoặc tất cả màu nếu chưa chọn size)
+    const getAvailableColors = () => {
+        if (selectedSize) {
+            // Chỉ lấy màu có sẵn cho size đã chọn (case-insensitive, trim whitespace)
+            const colorsForSize = product.variants
+                .filter(v => {
+                    const variantSize = String(v.size || '').trim();
+                    const selectedSizeTrimmed = String(selectedSize || '').trim();
+                    return variantSize === selectedSizeTrimmed;
+                })
+                .map(v => String(v.color || '').trim())
+                .filter(Boolean);
+            
+            // Remove duplicates and return
+            return Array.from(new Set(colorsForSize));
+        }
+        // Nếu chưa chọn size, lấy tất cả màu
+        const allColors = product.variants
+            .map(v => String(v.color || '').trim())
+            .filter(Boolean);
+        return Array.from(new Set(allColors));
+    };
+    const availableColors = getAvailableColors();
 
     // Effect để tìm variant tương ứng khi size hoặc màu thay đổi
     useEffect(() => {
-        // Cố gắng tìm variant khớp chính xác
-        let foundVariant = product.variants.find(v => v.size === selectedSize && v.color === selectedColor);
+        // Cố gắng tìm variant khớp chính xác (case-insensitive, trim whitespace)
+        let foundVariant = product.variants.find(v => {
+            const variantSize = String(v.size || '').trim();
+            const variantColor = String(v.color || '').trim();
+            const selectedSizeTrimmed = String(selectedSize || '').trim();
+            const selectedColorTrimmed = String(selectedColor || '').trim();
+            return variantSize === selectedSizeTrimmed && variantColor === selectedColorTrimmed;
+        });
         
         // Nếu không tìm thấy (ví dụ: mới vào trang, chỉ chọn 1 trong 2)
         if (!foundVariant) {
             if (selectedSize && !selectedColor) {
                  // Nếu chỉ chọn size, tự động chọn màu đầu tiên có sẵn cho size đó
-                const firstColorForSize = product.variants.find(v => v.size === selectedSize);
+                const firstColorForSize = product.variants.find(v => {
+                    const variantSize = String(v.size || '').trim();
+                    const selectedSizeTrimmed = String(selectedSize || '').trim();
+                    return variantSize === selectedSizeTrimmed;
+                });
                 if (firstColorForSize) {
-                    setSelectedColor(firstColorForSize.color);
+                    setSelectedColor(String(firstColorForSize.color || '').trim());
                     foundVariant = firstColorForSize;
                 }
             } else if (!selectedSize && selectedColor) {
                 // Nếu chỉ chọn màu, tự động chọn size đầu tiên có sẵn cho màu đó
-                const firstSizeForColor = product.variants.find(v => v.color === selectedColor);
+                const firstSizeForColor = product.variants.find(v => {
+                    const variantColor = String(v.color || '').trim();
+                    const selectedColorTrimmed = String(selectedColor || '').trim();
+                    return variantColor === selectedColorTrimmed;
+                });
                  if (firstSizeForColor) {
-                    setSelectedSize(firstSizeForColor.size);
+                    setSelectedSize(String(firstSizeForColor.size || '').trim());
                     foundVariant = firstSizeForColor;
                 }
             }
         }
         
-        setSelectedVariant(foundVariant || null);
+        const newVariant = foundVariant || null;
+        setSelectedVariant(newVariant);
         setQuantity(1); // Reset số lượng khi đổi variant
-    }, [selectedSize, selectedColor, product.variants]);
+        
+        // Notify parent component about variant change
+        if (onVariantChange) {
+            onVariantChange(newVariant);
+        }
+    }, [selectedSize, selectedColor, product.variants, onVariantChange]);
 
     // Hàm xử lý khi chọn size/màu (tự động cập nhật lựa chọn còn lại nếu cần)
     const handleSizeChange = (size: string) => {
-        setSelectedSize(size);
+        const sizeTrimmed = String(size || '').trim();
+        setSelectedSize(sizeTrimmed);
         // Kiểm tra xem màu hiện tại có khả dụng với size mới không
-        const isColorAvailable = product.variants.some(v => v.size === size && v.color === selectedColor && v.stock > 0);
+        const isColorAvailable = product.variants.some(v => {
+            const variantSize = String(v.size || '').trim();
+            const variantColor = String(v.color || '').trim();
+            const selectedColorTrimmed = String(selectedColor || '').trim();
+            return variantSize === sizeTrimmed && variantColor === selectedColorTrimmed && v.stock > 0;
+        });
         // Nếu không, chọn màu đầu tiên có sẵn cho size mới đó
         if (!isColorAvailable) {
-            const firstAvailableColor = product.variants.find(v => v.size === size && v.stock > 0)?.color;
-            setSelectedColor(firstAvailableColor || null);
+            const firstAvailableVariant = product.variants.find(v => {
+                const variantSize = String(v.size || '').trim();
+                return variantSize === sizeTrimmed && v.stock > 0;
+            });
+            if (firstAvailableVariant) {
+                setSelectedColor(String(firstAvailableVariant.color || '').trim());
+            } else {
+                setSelectedColor(null);
+            }
         }
     };
     
     const handleColorChange = (color: string) => {
-         setSelectedColor(color);
+         const colorTrimmed = String(color || '').trim();
+         setSelectedColor(colorTrimmed);
          // Kiểm tra xem size hiện tại có khả dụng với màu mới không
-         const isSizeAvailable = product.variants.some(v => v.color === color && v.size === selectedSize && v.stock > 0);
+         const isSizeAvailable = product.variants.some(v => {
+             const variantSize = String(v.size || '').trim();
+             const variantColor = String(v.color || '').trim();
+             const selectedSizeTrimmed = String(selectedSize || '').trim();
+             return variantColor === colorTrimmed && variantSize === selectedSizeTrimmed && v.stock > 0;
+         });
          // Nếu không, chọn size đầu tiên có sẵn cho màu mới đó
          if (!isSizeAvailable) {
-             const firstAvailableSize = product.variants.find(v => v.color === color && v.stock > 0)?.size;
-             setSelectedSize(firstAvailableSize || null);
+             const firstAvailableVariant = product.variants.find(v => {
+                 const variantColor = String(v.color || '').trim();
+                 return variantColor === colorTrimmed && v.stock > 0;
+             });
+             if (firstAvailableVariant) {
+                 setSelectedSize(String(firstAvailableVariant.size || '').trim());
+             } else {
+                 setSelectedSize(null);
+             }
          }
     };
 
@@ -116,11 +186,14 @@ export default function AddToCartButton({ product }: Props) {
     // Hàm map tên màu sang mã màu CSS (cần bổ sung thêm nếu có nhiều màu)
     const getColorCode = (colorName: string): string => {
         if (!colorName) return '#CCCCCC';
-        const lowerColor = colorName.toLowerCase();
+        const lowerColor = colorName.toLowerCase().trim();
         const colorMapping: { [key: string]: string } = {
             'trắng': '#FFFFFF',
+            'white': '#FFFFFF',
             'đen': '#000000',
+            'black': '#000000',
             'xanh nhạt': '#ADD8E6', // Light Blue
+            'light blue': '#ADD8E6',
             // Thêm các màu khác ở đây
         };
         return colorMapping[lowerColor] || '#CCCCCC'; // Màu xám mặc định nếu không tìm thấy
@@ -128,42 +201,48 @@ export default function AddToCartButton({ product }: Props) {
 
 
     return (
-        <form onSubmit={(e) => e.preventDefault()} className="mt-6">
+        <div className="mt-6">
             {/* Chọn Size */}
             {uniqueSizes.length > 0 && (
                 <div>
                     <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-medium text-gray-900">Size: <span className="font-bold">{selectedSize || ''}</span></h3>
+                        <h3 className="text-sm font-medium text-gray-300">Size: <span className="font-bold text-white">{selectedSize || ''}</span></h3>
                     </div>
                     <fieldset aria-label="Chọn size" className="mt-4">
-                        <div className="grid grid-cols-4 gap-4 sm:grid-cols-8 lg:grid-cols-5 xl:grid-cols-6">
+                        <div className="flex gap-3">
                             {uniqueSizes.map((size) => {
                                 // Kiểm tra xem size này có khả dụng không
                                 const isDisabled = !product.variants.some(v => v.size === size && v.stock > 0);
+                                const isSelected = selectedSize === size;
                                 return (
                                     <label
                                         key={size}
-                                        className={`group relative flex items-center justify-center rounded-md border py-3 px-4 text-sm font-medium uppercase focus:outline-none sm:flex-1 ${
+                                        className={`group relative flex items-center justify-center rounded-lg border-2 py-3 px-6 text-sm font-semibold uppercase transition-all focus:outline-none ${
                                             isDisabled
-                                                ? 'cursor-not-allowed bg-gray-50 text-gray-200'
-                                                : 'cursor-pointer bg-white text-gray-900 shadow-sm hover:bg-gray-50'
-                                        } ${
-                                            selectedSize === size ? 'border-indigo-500 ring-2 ring-indigo-500' : 'border-gray-200'
+                                                ? 'cursor-not-allowed bg-gray-800/50 text-gray-500 border-gray-700'
+                                                : isSelected
+                                                ? 'cursor-pointer bg-purple-600 text-white border-purple-500 shadow-lg shadow-purple-500/50'
+                                                : 'cursor-pointer bg-gray-800/80 text-gray-300 border-gray-600 hover:bg-gray-700 hover:border-gray-500'
                                         }`}
                                     >
                                         <input
                                             type="radio"
                                             name="size-choice"
                                             value={size}
-                                            checked={selectedSize === size}
+                                            checked={isSelected}
                                             onChange={() => handleSizeChange(size)}
                                             disabled={isDisabled}
                                             className="sr-only"
                                             aria-label={size}
                                         />
                                         <span>{size}</span>
-                                        <span className={`pointer-events-none absolute -inset-px rounded-md ${selectedSize === size && !isDisabled ? 'border border-indigo-500' : ''}`} aria-hidden="true" />
-                                        {isDisabled && <span className="pointer-events-none absolute -inset-px rounded-md border-2 border-gray-200" aria-hidden="true"><svg className="absolute inset-0 h-full w-full stroke-2 text-gray-200" viewBox="0 0 100 100" preserveAspectRatio="none" stroke="currentColor"><line x1="0" y1="100" x2="100" y2="0" vectorEffect="non-scaling-stroke"></line></svg></span>}
+                                        {isDisabled && (
+                                            <span className="pointer-events-none absolute -inset-px rounded-lg border-2 border-gray-600" aria-hidden="true">
+                                                <svg className="absolute inset-0 h-full w-full stroke-2 text-gray-600" viewBox="0 0 100 100" preserveAspectRatio="none" stroke="currentColor">
+                                                    <line x1="0" y1="100" x2="100" y2="0" vectorEffect="non-scaling-stroke"></line>
+                                                </svg>
+                                            </span>
+                                        )}
                                     </label>
                                 );
                             })}
@@ -173,28 +252,48 @@ export default function AddToCartButton({ product }: Props) {
             )}
 
              {/* Chọn Màu */}
-             {uniqueColors.length > 0 && (
+             {availableColors.length > 0 && (
                  <div className="mt-8">
-                    <h3 className="text-sm font-medium text-gray-900">Màu sắc: <span className="font-bold">{selectedColor || ''}</span></h3>
+                    <h3 className="text-sm font-medium text-gray-300">Màu sắc: <span className="font-bold text-white">{selectedColor || ''}</span></h3>
                      <fieldset aria-label="Chọn màu" className="mt-4">
-                        <div className="flex items-center space-x-3">
-                              {uniqueColors.map((color) => {
-                                  // Kiểm tra xem màu này có khả dụng không
-                                  const isDisabled = !product.variants.some(v => v.color === color && v.stock > 0);
+                        <div className="flex items-center gap-4">
+                              {availableColors.map((color) => {
+                                  // Kiểm tra xem màu này có khả dụng cho size đã chọn không (case-insensitive)
+                                  const variantForColor = selectedSize 
+                                      ? product.variants.find(v => {
+                                          const variantSize = String(v.size || '').trim();
+                                          const variantColor = String(v.color || '').trim();
+                                          const selectedSizeTrimmed = String(selectedSize || '').trim();
+                                          const colorTrimmed = String(color || '').trim();
+                                          return variantSize === selectedSizeTrimmed && variantColor === colorTrimmed;
+                                      })
+                                      : product.variants.find(v => {
+                                          const variantColor = String(v.color || '').trim();
+                                          const colorTrimmed = String(color || '').trim();
+                                          return variantColor === colorTrimmed;
+                                      });
+                                  const isDisabled = !variantForColor || variantForColor.stock <= 0;
                                   const bgColor = getColorCode(color);
+                                  const isSelected = selectedColor === color;
 
                                   return (
                                     <label
                                         key={color}
-                                        className={`relative -m-0.5 flex items-center justify-center rounded-full p-0.5 focus:outline-none ${isDisabled ? 'cursor-not-allowed opacity-25' : 'cursor-pointer'} ${
-                                            selectedColor === color ? 'ring ring-indigo-500 ring-offset-1' : ''
+                                        className={`relative flex items-center justify-center rounded-full p-1 focus:outline-none transition-all ${
+                                            isDisabled 
+                                                ? 'cursor-not-allowed opacity-30' 
+                                                : 'cursor-pointer'
+                                        } ${
+                                            isSelected 
+                                                ? 'ring-2 ring-purple-500 ring-offset-2 ring-offset-gray-800 scale-110' 
+                                                : 'hover:scale-105'
                                         }`}
                                     >
                                         <input
                                             type="radio"
                                             name="color-choice"
                                             value={color}
-                                            checked={selectedColor === color}
+                                            checked={isSelected}
                                             onChange={() => handleColorChange(color)}
                                             disabled={isDisabled}
                                             className="sr-only"
@@ -202,7 +301,11 @@ export default function AddToCartButton({ product }: Props) {
                                         />
                                         <span
                                             aria-hidden="true"
-                                            className={`h-8 w-8 rounded-full border border-black border-opacity-10`}
+                                            className={`h-10 w-10 rounded-full border-2 ${
+                                                bgColor === '#FFFFFF' || bgColor === '#000000'
+                                                    ? 'border-gray-400'
+                                                    : 'border-gray-600'
+                                            } shadow-lg`}
                                             style={{ backgroundColor: bgColor }}
                                         />
                                     </label>
@@ -214,13 +317,13 @@ export default function AddToCartButton({ product }: Props) {
              )}
 
             {/* Giá và Tình trạng */}
-            <p className="mt-8 text-3xl tracking-tight text-gray-900">
+            <p className="mt-8 text-3xl tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400 font-bold">
                 {selectedVariant
                     ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(selectedVariant.price)
                     : (product.variants[0] ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(product.variants[0].price) : "Liên hệ") // Hiển thị giá mặc định nếu chưa chọn
                 }
             </p>
-            <p className={`mt-2 text-sm font-medium ${selectedVariant && selectedVariant.stock > 0 ? 'text-green-600' : (selectedVariant && selectedVariant.stock === 0 ? 'text-red-600' : 'text-gray-500')}`}>
+            <p className={`mt-2 text-sm font-medium ${selectedVariant && selectedVariant.stock > 0 ? 'text-green-400' : (selectedVariant && selectedVariant.stock === 0 ? 'text-red-400' : 'text-gray-400')}`}>
                 {selectedVariant
                     ? (selectedVariant.stock > 0 ? `Còn hàng (Tồn kho: ${selectedVariant.stock})` : 'Hết hàng')
                     : (uniqueSizes.length > 0 || uniqueColors.length > 0 ? 'Vui lòng chọn size/màu' : 'Chưa có hàng')
@@ -230,12 +333,12 @@ export default function AddToCartButton({ product }: Props) {
             {/* Chọn Số lượng */}
              {selectedVariant && selectedVariant.stock > 0 && ( // Chỉ hiển thị khi có hàng và đã chọn variant
                  <div className="mt-8">
-                      <label htmlFor="quantity" className="block text-sm font-medium text-gray-700">Số lượng</label>
-                      <div className="mt-1 flex items-center border rounded-md w-fit">
+                      <label htmlFor="quantity" className="block text-sm font-medium text-gray-300 mb-2">Số lượng</label>
+                      <div className="mt-1 flex items-center border-2 border-gray-600 rounded-lg w-fit bg-gray-800/50">
                         <button
                           type="button"
                           onClick={() => setQuantity(q => Math.max(1, q - 1))}
-                          className="px-3 py-1 text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed rounded-l"
+                          className="px-4 py-2 text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-l-lg transition-colors"
                           disabled={quantity <= 1}
                           aria-label="Giảm số lượng"
                         >
@@ -252,13 +355,13 @@ export default function AddToCartButton({ product }: Props) {
                             const val = parseInt(e.target.value) || 1;
                             setQuantity(Math.max(1, Math.min(val, selectedVariant.stock))); // Giới hạn số lượng
                           }}
-                          className="w-12 text-center border-l border-r py-1 text-gray-900 focus:outline-none focus:ring-0"
+                          className="w-16 text-center border-l-2 border-r-2 border-gray-600 py-2 text-white bg-gray-800 focus:outline-none focus:ring-0"
                           readOnly // Ngăn nhập số âm/lớn
                         />
                         <button
                           type="button"
                            onClick={() => setQuantity(q => Math.min(selectedVariant.stock, q + 1))}
-                          className="px-3 py-1 text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed rounded-r"
+                          className="px-4 py-2 text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-r-lg transition-colors"
                            disabled={quantity >= selectedVariant.stock}
                           aria-label="Tăng số lượng"
                         >
@@ -273,10 +376,10 @@ export default function AddToCartButton({ product }: Props) {
                 type="button"
                 onClick={handleAddToCart}
                 disabled={!selectedVariant || selectedVariant.stock === 0 || quantity > selectedVariant.stock || quantity <= 0}
-                className="mt-10 flex w-full items-center justify-center rounded-md border border-transparent bg-indigo-600 px-8 py-3 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-400"
+                className="mt-10 flex w-full items-center justify-center rounded-lg border border-transparent bg-gradient-to-r from-purple-600 to-pink-600 px-8 py-4 text-base font-semibold text-white hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-gray-800 disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-700 disabled:from-gray-700 disabled:to-gray-700 transition-all shadow-lg shadow-purple-500/50 hover:shadow-xl hover:shadow-purple-500/50"
             >
                 {!selectedVariant ? 'Vui lòng chọn size/màu' : (selectedVariant.stock > 0 ? 'Thêm vào giỏ hàng' : 'Hết hàng')}
             </button>
-        </form>
+        </div>
     );
 }

@@ -55,7 +55,19 @@ exports.getAllProducts = async (req, res, next) => {
 // Lấy 1 sản phẩm CHI TIẾT
 exports.getProductById = async (req, res, next) => {
   try {
-    const product = await Product.findByPk(req.params.id, {
+    const productId = parseInt(req.params.id, 10);
+    
+    // Validate product ID
+    if (isNaN(productId) || productId <= 0) {
+      return res.status(400).json({ 
+        status: 'error',
+        message: 'ID sản phẩm không hợp lệ' 
+      });
+    }
+    
+    console.log(`[Product Controller] Fetching product with ID: ${productId}`);
+    
+    const product = await Product.findByPk(productId, {
       include: [
         { model: Category, as: 'category' },
         { 
@@ -66,10 +78,17 @@ exports.getProductById = async (req, res, next) => {
     });
     
     if (!product) {
-      return res.status(404).json({ message: 'Không tìm thấy sản phẩm' });
+      console.log(`[Product Controller] Product with ID ${productId} not found`);
+      return res.status(404).json({ 
+        status: 'error',
+        message: 'Không tìm thấy sản phẩm' 
+      });
     }
+    
+    console.log(`[Product Controller] Product found: ${product.name} (ID: ${product.id})`);
     res.status(200).json({ status: 'success', data: product });
   } catch (error) {
+    console.error('[Product Controller] Error fetching product:', error);
     next(error);
   }
 };

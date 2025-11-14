@@ -113,26 +113,26 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
   };
 
   if (loading) {
-    return <div className="mt-8">Đang tải đánh giá...</div>;
+    return <div className="mt-8 text-gray-400">Đang tải đánh giá...</div>;
   }
 
   return (
-    <div className="mt-12 border-t pt-8">
+    <div className="mt-12 border-t border-gray-700 pt-8">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Đánh giá sản phẩm</h2>
+          <h2 className="text-2xl font-bold text-white">Đánh giá sản phẩm</h2>
           <div className="mt-2 flex items-center gap-2">
             <div className="flex items-center">
               {renderStars(Math.round(parseFloat(averageRating)))}
             </div>
-            <span className="text-lg font-semibold text-gray-900">{averageRating}</span>
-            <span className="text-gray-500">({totalReviews} đánh giá)</span>
+            <span className="text-lg font-semibold text-white">{averageRating}</span>
+            <span className="text-gray-400">({totalReviews} đánh giá)</span>
           </div>
         </div>
         {isAuthenticated && !showForm && (
           <button
             onClick={() => setShowForm(true)}
-            className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+            className="rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2 text-sm font-medium text-white hover:from-purple-700 hover:to-pink-700 transition-all shadow-lg shadow-purple-500/50"
           >
             Viết đánh giá
           </button>
@@ -140,11 +140,11 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
       </div>
 
       {showForm && isAuthenticated && (
-        <form onSubmit={handleSubmit} className="mb-8 p-6 bg-gray-50 rounded-lg">
-          <h3 className="text-lg font-semibold mb-4">Viết đánh giá của bạn</h3>
+        <form onSubmit={handleSubmit} className="mb-8 p-6 bg-gray-800/50 rounded-lg border border-gray-700">
+          <h3 className="text-lg font-semibold mb-4 text-white">Viết đánh giá của bạn</h3>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
                 Đánh giá *
               </label>
               <div className="flex gap-2">
@@ -153,9 +153,9 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
                     key={rating}
                     type="button"
                     onClick={() => setFormData({ ...formData, rating })}
-                    className={`text-2xl ${
-                      rating <= formData.rating ? 'text-yellow-400' : 'text-gray-300'
-                    } hover:text-yellow-400 transition-colors`}
+                    className={`text-2xl transition-all hover:scale-110 ${
+                      rating <= formData.rating ? 'text-yellow-400' : 'text-gray-500'
+                    } hover:text-yellow-400`}
                   >
                     ★
                   </button>
@@ -163,14 +163,14 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
                 Nhận xét
               </label>
               <textarea
                 value={formData.comment}
                 onChange={(e) => setFormData({ ...formData, comment: e.target.value })}
                 rows={4}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded-lg border border-gray-600 bg-gray-800/50 px-3 py-2 text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
                 placeholder="Chia sẻ trải nghiệm của bạn về sản phẩm này..."
               />
             </div>
@@ -178,7 +178,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
               <button
                 type="submit"
                 disabled={submitting}
-                className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                className="rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2 text-sm font-medium text-white hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 transition-all"
               >
                 {submitting ? 'Đang gửi...' : 'Gửi đánh giá'}
               </button>
@@ -188,7 +188,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
                   setShowForm(false);
                   setFormData({ rating: 5, comment: '' });
                 }}
-                className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                className="rounded-lg border border-gray-600 px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 transition-colors"
               >
                 Hủy
               </button>
@@ -198,8 +198,8 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
       )}
 
       {!isAuthenticated && (
-        <p className="text-sm text-gray-500 mb-6">
-          <a href="/login" className="text-indigo-600 hover:text-indigo-700 font-medium">
+        <p className="text-sm text-gray-400 mb-6">
+          <a href="/login" className="text-purple-400 hover:text-purple-300 font-medium transition-colors">
             Đăng nhập
           </a>{' '}
           để viết đánh giá
@@ -208,29 +208,29 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
 
       <div className="space-y-6">
         {reviews.length === 0 ? (
-          <p className="text-gray-500 text-center py-8">Chưa có đánh giá nào cho sản phẩm này.</p>
+          <p className="text-gray-400 text-center py-8">Chưa có đánh giá nào cho sản phẩm này.</p>
         ) : (
           reviews.map((review) => (
-            <div key={review.id} className="border-b pb-6 last:border-b-0">
+            <div key={review.id} className="border-b border-gray-700 pb-6 last:border-b-0">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
-                    <div className="font-semibold text-gray-900">{review.user.name}</div>
+                    <div className="font-semibold text-white">{review.user.name}</div>
                     <div className="flex items-center">
                       {renderStars(review.rating)}
                     </div>
-                    <span className="text-sm text-gray-500">
+                    <span className="text-sm text-gray-400">
                       {formatDate(review.createdAt)}
                     </span>
                   </div>
                   {review.comment && (
-                    <p className="text-gray-700 mt-2">{review.comment}</p>
+                    <p className="text-gray-300 mt-2">{review.comment}</p>
                   )}
                 </div>
                 {isAuthenticated && (user?.id === review.user.id || user?.role === 'admin') && (
                   <button
                     onClick={() => handleDelete(review.id)}
-                    className="text-sm text-red-600 hover:text-red-700"
+                    className="text-sm text-red-400 hover:text-red-300 transition-colors"
                   >
                     Xóa
                   </button>
