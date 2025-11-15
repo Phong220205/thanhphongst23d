@@ -1,5 +1,6 @@
 // API utility functions for frontend
 import axios from 'axios';
+import { useAuthStore } from '@/store/authStore';
 
 // Use NEXT_PUBLIC_API_BASE_URL for client-side calls
 // This will be available in the browser, fallback to localhost for development
@@ -13,23 +14,77 @@ const api = axios.create({
   },
 });
 
+// Public endpoints that don't require authentication
+const publicEndpoints = ['/auth/login', '/auth/register', '/products', '/categories'];
+
 // Add token to requests if available
 api.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
-    const authData = localStorage.getItem('clothing-store-auth');
-    if (authData) {
+    // Check if this is a public endpoint
+    const isPublicEndpoint = publicEndpoints.some(endpoint => 
+      config.url?.includes(endpoint) || config.url?.startsWith(endpoint)
+    );
+    
+    // Only add token for protected endpoints
+    if (!isPublicEndpoint) {
+      let token = null;
+      
+      // First try to get from auth store
       try {
-        const parsed = JSON.parse(authData);
-        if (parsed.state?.token) {
-          config.headers.Authorization = `Bearer ${parsed.state.token}`;
+        const authState = useAuthStore.getState();
+        token = authState.token;
+        if (token && process.env.NODE_ENV === 'development') {
+          console.log('[API Interceptor] Token from store:', token.substring(0, 20) + '...');
         }
       } catch (e) {
-        // Ignore parse errors
+        console.warn('[API Interceptor] Could not get token from auth store:', e);
+      }
+      
+      // Fallback to localStorage if store doesn't have token
+      if (!token) {
+        const authData = localStorage.getItem('clothing-store-auth');
+        if (authData) {
+          try {
+            const parsed = JSON.parse(authData);
+            // Zustand persist stores data in { state: {...}, version: ... } format
+            token = parsed.state?.token || parsed.token;
+            if (token && process.env.NODE_ENV === 'development') {
+              console.log('[API Interceptor] Token from localStorage:', token.substring(0, 20) + '...');
+            }
+          } catch (e) {
+            console.error('[API Interceptor] Error parsing auth data:', e, 'Raw data:', authData?.substring(0, 100));
+          }
+        }
+      }
+      
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[API Interceptor] Token attached to request:', config.url, token.substring(0, 20) + '...');
+        }
+      } else {
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('[API Interceptor] No token found for protected endpoint:', config.url);
+        }
       }
     }
   }
   return config;
 });
+
+// Handle 401 errors - but don't redirect automatically, let components handle it
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401 && typeof window !== 'undefined') {
+      // Only clear auth data, don't redirect automatically
+      // Let the component handle the redirect with proper error message
+      console.warn('401 Unauthorized - Token may be expired or invalid');
+      // Don't redirect here - let the component handle it
+    }
+    return Promise.reject(error);
+  }
+);
 
 // Auth API
 export const authAPI = {
@@ -98,8 +153,63 @@ export const ordersAPI = {
     paymentMethod?: string;
     shippingAddress?: string;
   }) => {
-    const response = await api.post('/orders', data);
-    return response.data;
+    // Ensure token is attached - get it directly before making the request
+    let token = null;
+    if (typeof window !== 'undefined') {
+      try {
+        const authState = useAuthStore.getState();
+        token = authState.token;
+        
+        // Fallback to localStorage
+        if (!token) {
+          const authData = localStorage.getItem('clothing-store-auth');
+          if (authData) {
+            try {
+              const parsed = JSON.parse(authData);
+              token = parsed.state?.token || parsed.token;
+            } catch (e) {
+              console.error('Error parsing auth data in ordersAPI:', e);
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Error getting token in ordersAPI:', e);
+      }
+    }
+    
+    // Make request with explicit token in headers
+    if (!token) {
+      console.error('[ordersAPI.create] No token found! Cannot make request.');
+      throw new Error('Authentication required. Please log in again.');
+    }
+    
+    // Create config with Authorization header
+    // Axios will merge this with interceptor headers
+    const config = {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    };
+    
+    console.log('[ordersAPI.create] Making request with token:', {
+      tokenPreview: token.substring(0, 30) + '...',
+      tokenLength: token.length,
+      url: '/orders'
+    });
+    
+    try {
+      const response = await api.post('/orders', data, config);
+      console.log('[ordersAPI.create] Order created successfully:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('[ordersAPI.create] Request failed:', {
+        status: error.response?.status,
+        message: error.response?.data?.message,
+        headers: error.response?.headers,
+        requestHeaders: error.config?.headers
+      });
+      throw error;
+    }
   },
   getMyOrders: async (params?: { page?: number; limit?: number; status?: string }) => {
     const response = await api.get('/orders/my-orders', { params });

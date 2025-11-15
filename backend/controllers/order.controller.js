@@ -109,6 +109,31 @@ exports.createOrder = async (req, res, next) => {
   } catch (error) {
     await t.rollback();
     console.error('Error creating order:', error);
+    console.error('Error details:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
+    
+    // Provide more specific error messages
+    if (error.name === 'SequelizeDatabaseError') {
+      console.error('Database error details:', error.parent?.message || error.message);
+      return res.status(500).json({
+        status: 'error',
+        message: 'Lỗi cơ sở dữ liệu',
+        ...(process.env.NODE_ENV === 'development' && {
+          details: error.parent?.message || error.message
+        })
+      });
+    }
+    
+    if (error.name === 'SequelizeForeignKeyConstraintError') {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Dữ liệu không hợp lệ: tham chiếu không tồn tại'
+      });
+    }
+    
     next(error);
   }
 };

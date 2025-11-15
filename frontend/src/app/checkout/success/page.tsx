@@ -61,7 +61,7 @@ function CheckoutSuccessContent() {
             />
           </svg>
         </div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-4">Thanh toán thành công!</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-4">Đặt hàng thành công!</h1>
         <p className="text-lg text-gray-600 mb-8">
           Cảm ơn bạn đã mua sắm. Đơn hàng của bạn đã được xác nhận.
         </p>
