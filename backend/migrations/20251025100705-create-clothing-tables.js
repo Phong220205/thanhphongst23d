@@ -95,6 +95,7 @@ module.exports = {
       total: { type: Sequelize.DECIMAL(10, 2), allowNull: false },
       status: { type: Sequelize.STRING, allowNull: false, defaultValue: 'pending' }, // pending, paid, shipped, cancelled
       paymentMethod: { type: Sequelize.STRING },
+      shippingAddress: { type: Sequelize.TEXT, allowNull: true },
       createdAt: { allowNull: false, type: Sequelize.DATE },
       updatedAt: { allowNull: false, type: Sequelize.DATE }
     });

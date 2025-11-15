@@ -13,7 +13,9 @@ exports.protect = async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    // Use the same fallback secret as in auth.controller.js
+    const secret = process.env.JWT_SECRET || 'dev_fallback_jwt_secret_change_me';
+    const decoded = jwt.verify(token, secret);
     const currentUser = await User.findByPk(decoded.id, { attributes: { exclude: ['password'] } });
 
     if (!currentUser) {
