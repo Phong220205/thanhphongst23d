@@ -4,6 +4,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useCartStore } from '@/store/cartStore';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 export default function AuthButtons() {
     const router = useRouter();
@@ -11,11 +12,27 @@ export default function AuthButtons() {
     // Lấy state từ store
     const { isAuthenticated, user, logout } = useAuthStore();
     const totalItems = useCartStore((state) => state.getTotalItems());
+    const [isClient, setIsClient] = useState(false);
+
+    useEffect(() => {
+        if (!isClient) {
+            setIsClient(true);
+        }
+    }, [isClient]);
 
     const handleLogout = () => {
         logout();
         router.push('/'); // Chuyển về trang chủ sau khi đăng xuất
     };
+
+    if (!isClient) {
+        return (
+            <div className="flex items-center gap-4 animate-pulse">
+                <div className="h-4 w-16 bg-gray-200 rounded" />
+                <div className="h-6 w-6 bg-gray-200 rounded-full" />
+            </div>
+        );
+    }
 
     // Khi đã ở client, hiển thị đúng
     return (

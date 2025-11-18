@@ -3,8 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css"; 
 import { Toaster } from "react-hot-toast"; 
 import Link from "next/link";
-import dynamic from "next/dynamic";
-const AuthButtons = dynamic(() => import("@/components/AuthButtons"), { ssr: false });
+import AuthButtons from "@/components/AuthButtons";
 import SearchBar from "@/components/SearchBar";
 
 const inter = Inter({ subsets: ["latin"] });
