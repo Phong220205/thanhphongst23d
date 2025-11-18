@@ -15,7 +15,7 @@ export default function AuthButtons() {
     const handleLogout = () => {
         logout();
         router.push('/'); // Chuyển về trang chủ sau khi đăng xuất
-    }
+    };
 
     // Khi đã ở client, hiển thị đúng
     return (

@@ -281,6 +281,11 @@ export default function CheckoutPage() {
           router.push('/login');
         }, 2000);
         return; // Important: return early to prevent further execution
+      } else if (axiosError?.response?.status === 404) {
+        const errorMessage = axiosError.response?.data?.message || 'Không tìm thấy sản phẩm trong đơn hàng. Vui lòng kiểm tra lại giỏ hàng.';
+        toast.error(errorMessage, { duration: 4000 });
+        router.push('/cart');
+        return;
       } else if (axiosError?.response?.status === 400) {
         const errorMessage = axiosError.response?.data?.message || 'Thông tin đơn hàng không hợp lệ';
         toast.error(errorMessage);
