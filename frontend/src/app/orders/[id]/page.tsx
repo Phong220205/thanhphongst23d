@@ -74,9 +74,9 @@ export default function OrderDetailPage() {
           toast.error('Không tìm thấy đơn hàng');
           router.push('/orders');
         }
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error fetching order:', error);
-        toast.error('Không thể tải thông tin đơn hàng');
+        toast.error(error instanceof Error ? error.message : 'Không thể tải thông tin đơn hàng');
         router.push('/orders');
       } finally {
         setLoading(false);

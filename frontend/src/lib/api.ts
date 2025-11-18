@@ -1,5 +1,6 @@
 // API utility functions for frontend
 import axios from 'axios';
+import type { AxiosError } from 'axios';
 import { useAuthStore } from '@/store/authStore';
 
 // Use NEXT_PUBLIC_API_BASE_URL for client-side calls
@@ -86,17 +87,47 @@ api.interceptors.response.use(
   }
 );
 
+export interface ProductVariantPayload {
+  color: string;
+  size: string;
+  price: number;
+  stock: number;
+  image?: string;
+}
+
+export interface ProductPayload {
+  name: string;
+  description?: string;
+  brand?: string;
+  categoryId: number;
+  variants: ProductVariantPayload[];
+}
+
+export interface OrderItemPayload {
+  variantId: number;
+  quantity: number;
+}
+
+export interface CreateOrderPayload {
+  items: OrderItemPayload[];
+  paymentMethod?: string;
+  shippingAddress?: string;
+}
+
+const attachAxiosErrorMessage = (error: unknown) => {
+  if (axios.isAxiosError(error) && error.response?.data?.message) {
+    (error as AxiosError).message = error.response.data.message;
+  }
+};
+
 // Auth API
 export const authAPI = {
   register: async (data: { name: string; email: string; password: string }) => {
     try {
       const response = await api.post('/auth/register', data);
       return response.data;
-    } catch (error: any) {
-      // Re-throw with better error message
-      if (error.response?.data?.message) {
-        error.message = error.response.data.message;
-      }
+    } catch (error) {
+      attachAxiosErrorMessage(error);
       throw error;
     }
   },
@@ -104,11 +135,8 @@ export const authAPI = {
     try {
       const response = await api.post('/auth/login', data);
       return response.data;
-    } catch (error: any) {
-      // Re-throw with better error message
-      if (error.response?.data?.message) {
-        error.message = error.response.data.message;
-      }
+    } catch (error) {
+      attachAxiosErrorMessage(error);
       throw error;
     }
   },
@@ -124,11 +152,11 @@ export const productsAPI = {
     const response = await api.get(`/products/${id}`);
     return response.data;
   },
-  create: async (data: any) => {
+  create: async (data: ProductPayload) => {
     const response = await api.post('/products', data);
     return response.data;
   },
-  update: async (id: number, data: any) => {
+  update: async (id: number, data: ProductPayload) => {
     const response = await api.put(`/products/${id}`, data);
     return response.data;
   },
@@ -148,11 +176,7 @@ export const categoriesAPI = {
 
 // Orders API
 export const ordersAPI = {
-  create: async (data: {
-    items: Array<{ variantId: number; quantity: number }>;
-    paymentMethod?: string;
-    shippingAddress?: string;
-  }) => {
+  create: async (data: CreateOrderPayload) => {
     // Ensure token is attached - get it directly before making the request
     let token = null;
     if (typeof window !== 'undefined') {
@@ -201,13 +225,15 @@ export const ordersAPI = {
       const response = await api.post('/orders', data, config);
       console.log('[ordersAPI.create] Order created successfully:', response.data);
       return response.data;
-    } catch (error: any) {
-      console.error('[ordersAPI.create] Request failed:', {
-        status: error.response?.status,
-        message: error.response?.data?.message,
-        headers: error.response?.headers,
-        requestHeaders: error.config?.headers
-      });
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        console.error('[ordersAPI.create] Request failed:', {
+          status: error.response?.status,
+          message: error.response?.data?.message,
+          headers: error.response?.headers,
+          requestHeaders: error.config?.headers
+        });
+      }
       throw error;
     }
   },

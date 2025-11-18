@@ -1,11 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { productsAPI, categoriesAPI } from '@/lib/api';
 import { toast } from 'react-hot-toast';
-import Link from 'next/link';
 
 interface ProductVariant {
   id?: number;
@@ -31,6 +30,46 @@ interface Category {
   name: string;
 }
 
+interface ProductVariantForm {
+  color: string;
+  size: string;
+  price: string;
+  stock: string;
+  image: string;
+}
+
+interface ProductFormState {
+  name: string;
+  description: string;
+  brand: string;
+  categoryId: string;
+  variants: ProductVariantForm[];
+}
+
+interface ProductPayload {
+  name: string;
+  description: string;
+  brand: string;
+  categoryId: number;
+  variants: Array<{
+    color: string;
+    size: string;
+    price: number;
+    stock: number;
+    image: string;
+  }>;
+}
+
+const getErrorMessage = (error: unknown, fallback = 'Có lỗi xảy ra'): string => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  return fallback;
+};
+
 export default function AdminProductsPage() {
   const router = useRouter();
   const { user, isAuthenticated } = useAuthStore();
@@ -39,19 +78,40 @@ export default function AdminProductsPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ProductFormState>({
     name: '',
     description: '',
     brand: '',
     categoryId: '',
-    variants: [{ color: '', size: '', price: '', stock: '', image: '' }] as Array<{
-      color: string;
-      size: string;
-      price: string;
-      stock: string;
-      image: string;
-    }>
+    variants: [{ color: '', size: '', price: '', stock: '', image: '' }]
   });
+
+  const fetchProducts = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await productsAPI.getAll({ limit: 100 });
+      if (response.status === 'success') {
+        setProducts(response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      toast.error('Không thể tải danh sách sản phẩm');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const fetchCategories = useCallback(async () => {
+    try {
+      const response = await categoriesAPI.getAll();
+      if (response.status === 'success') {
+        setCategories(response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      toast.error('Không thể tải danh mục');
+    }
+  }, []);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -65,32 +125,7 @@ export default function AdminProductsPage() {
     }
     fetchProducts();
     fetchCategories();
-  }, [isAuthenticated, user, router]);
-
-  const fetchProducts = async () => {
-    try {
-      const response = await productsAPI.getAll({ limit: 100 });
-      if (response.status === 'success') {
-        setProducts(response.data);
-      }
-    } catch (error: any) {
-      console.error('Error fetching products:', error);
-      toast.error('Không thể tải danh sách sản phẩm');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchCategories = async () => {
-    try {
-      const response = await categoriesAPI.getAll();
-      if (response.status === 'success') {
-        setCategories(response.data);
-      }
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-    }
-  };
+  }, [isAuthenticated, user?.role, router, fetchProducts, fetchCategories]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -105,7 +140,7 @@ export default function AdminProductsPage() {
           image: v.image || ''
         }));
 
-      const productData = {
+      const productData: ProductPayload = {
         name: formData.name,
         description: formData.description,
         brand: formData.brand,
@@ -128,7 +163,7 @@ export default function AdminProductsPage() {
         toast.success('Cập nhật sản phẩm thành công');
       } else {
         // Create product
-        const response = await productsAPI.create(productData as any);
+        const response = await productsAPI.create(productData);
         if (response.status === 'success') {
           toast.success('Tạo sản phẩm thành công');
         }
@@ -138,9 +173,9 @@ export default function AdminProductsPage() {
       setEditingProduct(null);
       resetForm();
       fetchProducts();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error saving product:', error);
-      toast.error(error.message || 'Có lỗi xảy ra');
+      toast.error(getErrorMessage(error));
     }
   };
 
@@ -158,9 +193,9 @@ export default function AdminProductsPage() {
       if (!response.ok) throw new Error('Xóa thất bại');
       toast.success('Xóa sản phẩm thành công');
       fetchProducts();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error deleting product:', error);
-      toast.error(error.message || 'Có lỗi xảy ra');
+      toast.error(getErrorMessage(error));
     }
   };
 

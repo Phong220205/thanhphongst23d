@@ -1,26 +1,27 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, Suspense, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ordersAPI } from '@/lib/api';
 import Link from 'next/link';
+
+interface OrderSummary {
+  id: number;
+  total: string;
+  status: string;
+}
 
 function CheckoutSuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const orderId = searchParams.get('orderId');
-  const [order, setOrder] = useState<any>(null);
+  const [order, setOrder] = useState<OrderSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (orderId) {
-      fetchOrder();
-    } else {
-      router.push('/orders');
+  const fetchOrder = useCallback(async () => {
+    if (!orderId) {
+      return;
     }
-  }, [orderId, router]);
-
-  const fetchOrder = async () => {
     try {
       const response = await ordersAPI.getById(parseInt(orderId!));
       if (response.status === 'success') {
@@ -31,7 +32,15 @@ function CheckoutSuccessContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [orderId]);
+
+  useEffect(() => {
+    if (orderId) {
+      fetchOrder();
+    } else {
+      router.push('/orders');
+    }
+  }, [orderId, router, fetchOrder]);
 
   if (loading) {
     return (

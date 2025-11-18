@@ -85,13 +85,20 @@ async function getProductDetail(id: string): Promise<Product | null> {
     
     console.log(`Fetched product detail successfully: ${productData.name}`);
     return productData as Product;
-  } catch (error: any) {
-    // Handle different types of errors
-    if (error.name === 'AbortError') {
-      console.error("Request timeout: Backend server may be slow or unresponsive");
-    } else if (error.code === 'ECONNREFUSED' || error.message?.includes('fetch failed')) {
-      console.error("Connection refused: Backend server may not be running at", apiUrl);
-      console.error("Please ensure the backend server is running on port 5000");
+  } catch (error) {
+    if (error instanceof Error) {
+      // Handle different types of errors
+      if (error.name === 'AbortError') {
+        console.error("Request timeout: Backend server may be slow or unresponsive");
+      } else {
+        const errnoError = error as NodeJS.ErrnoException;
+        if (errnoError.code === 'ECONNREFUSED' || error.message?.includes('fetch failed')) {
+          console.error("Connection refused: Backend server may not be running at", apiUrl);
+          console.error("Please ensure the backend server is running on port 5000");
+        } else {
+          console.error("Network error fetching product detail:", error);
+        }
+      }
     } else {
       console.error("Network error fetching product detail:", error);
     }
