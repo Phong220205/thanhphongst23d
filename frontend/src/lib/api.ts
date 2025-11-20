@@ -241,6 +241,14 @@ export const ordersAPI = {
     const response = await api.get('/orders/my-orders', { params });
     return response.data;
   },
+  getAll: async (params?: { page?: number; limit?: number; status?: string; userId?: number }) => {
+    const response = await api.get('/orders', { params });
+    return response.data;
+  },
+  updateStatus: async (id: number, status: string) => {
+    const response = await api.patch(`/orders/${id}/status`, { status });
+    return response.data;
+  },
   getById: async (id: number) => {
     const response = await api.get(`/orders/${id}`);
     return response.data;

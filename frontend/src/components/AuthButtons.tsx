@@ -51,6 +51,17 @@ export default function AuthButtons() {
                         </svg>
                         Đăng xuất
                     </button>
+                    {user?.role === 'admin' && (
+                      <Link
+                        href="/admin"
+                        className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold text-indigo-600 hover:bg-indigo-50 transition-colors duration-200"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h18M3 12h18M3 17h18" />
+                        </svg>
+                        Admin
+                      </Link>
+                    )}
                 </>
             ) : (
                 // Chưa đăng nhập

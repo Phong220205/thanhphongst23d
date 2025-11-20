@@ -45,7 +45,11 @@ export default function LoginPage() {
       }
 
       toast.success(`Đăng nhập thành công! Chào mừng, ${user.name}.`);
-      router.push('/'); 
+      if (user.role === 'admin') {
+        router.push('/admin');
+      } else {
+        router.push('/');
+      }
     } catch (err) {
       let msg = 'Đăng nhập thất bại. Vui lòng kiểm tra email và mật khẩu.';
       if (axios.isAxiosError(err)) {
