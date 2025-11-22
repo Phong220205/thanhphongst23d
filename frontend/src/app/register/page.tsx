@@ -7,6 +7,7 @@ import { useMemo, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { authAPI } from '@/lib/api';
+import axios from 'axios';
 
 function getPasswordStrength(pw: string) {
   let score = 0;
@@ -72,8 +73,13 @@ export default function RegisterPage() {
       setAuth(token, user);
       toast.success('Đăng ký thành công! Chào mừng bạn đến với MyStore.');
       router.push('/'); 
-    } catch (err: any) {
-      const msg = err.response?.data?.message || 'Đăng ký thất bại. Vui lòng thử lại.';
+    } catch (err) {
+      let msg = 'Đăng ký thất bại. Vui lòng thử lại.';
+      if (axios.isAxiosError(err)) {
+        msg = err.response?.data?.message || msg;
+      } else if (err instanceof Error) {
+        msg = err.message || msg;
+      }
       setError(msg);
       toast.error(msg);
     } finally {

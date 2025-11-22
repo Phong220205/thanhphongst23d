@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { reviewsAPI } from '@/lib/api';
 import { toast } from 'react-hot-toast';
@@ -21,6 +21,16 @@ interface ProductReviewsProps {
   productId: number;
 }
 
+const getErrorMessage = (error: unknown, fallback = 'Có lỗi xảy ra'): string => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  return fallback;
+};
+
 export default function ProductReviews({ productId }: ProductReviewsProps) {
   const { isAuthenticated, user } = useAuthStore();
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -34,11 +44,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
   });
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    fetchReviews();
-  }, [productId]);
-
-  const fetchReviews = async () => {
+  const fetchReviews = useCallback(async () => {
     try {
       const response = await reviewsAPI.getByProduct(productId, { limit: 20 });
       if (response.status === 'success') {
@@ -51,7 +57,11 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [productId]);
+
+  useEffect(() => {
+    fetchReviews();
+  }, [fetchReviews]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,10 +81,9 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
       setShowForm(false);
       setFormData({ rating: 5, comment: '' });
       fetchReviews();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error submitting review:', error);
-      const errorMessage = error.response?.data?.message || 'Không thể gửi đánh giá';
-      toast.error(errorMessage);
+      toast.error(getErrorMessage(error, 'Không thể gửi đánh giá'));
     } finally {
       setSubmitting(false);
     }
@@ -87,7 +96,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
       await reviewsAPI.delete(reviewId);
       toast.success('Đã xóa đánh giá');
       fetchReviews();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error deleting review:', error);
       toast.error('Không thể xóa đánh giá');
     }
