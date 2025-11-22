@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useMemo } from 'react';
 import ProductImage from './ProductImage';
 
 interface ProductVariant {
@@ -24,17 +24,14 @@ export default function DynamicProductImage({
   variants, 
   selectedVariant 
 }: DynamicProductImageProps) {
-  const [currentImage, setCurrentImage] = useState<string>(
-    variants[0]?.image || '/placeholder-image.jpg'
-  );
-
-  useEffect(() => {
+  const currentImage = useMemo(() => {
     if (selectedVariant?.image) {
-      setCurrentImage(selectedVariant.image);
-    } else if (variants.length > 0) {
-      // Fallback to first variant image if no variant selected
-      setCurrentImage(variants[0].image || '/placeholder-image.jpg');
+      return selectedVariant.image;
     }
+    if (variants.length > 0) {
+      return variants[0].image || '/placeholder-image.jpg';
+    }
+    return '/placeholder-image.jpg';
   }, [selectedVariant, variants]);
 
   return (

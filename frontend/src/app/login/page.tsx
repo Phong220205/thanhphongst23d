@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { authAPI } from '@/lib/api';
+import axios from 'axios';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -44,11 +45,22 @@ export default function LoginPage() {
       }
 
       toast.success(`Đăng nhập thành công! Chào mừng, ${user.name}.`);
-      router.push('/'); 
-    } catch (err: any) {
+      if (user.role === 'admin') {
+        router.push('/admin');
+      } else {
+        router.push('/');
+      }
+    } catch (err) {
       let msg = 'Đăng nhập thất bại. Vui lòng kiểm tra email và mật khẩu.';
-      if (err?.response) msg = err.response.data?.message || msg;
-      else if (err?.request) msg = 'Không thể kết nối đến server. Vui lòng thử lại sau.';
+      if (axios.isAxiosError(err)) {
+        if (err.response) {
+          msg = err.response.data?.message || msg;
+        } else if (err.request) {
+          msg = 'Không thể kết nối đến server. Vui lòng thử lại sau.';
+        }
+      } else if (err instanceof Error) {
+        msg = err.message || msg;
+      }
       setError(msg);
       toast.error(msg);
     } finally {

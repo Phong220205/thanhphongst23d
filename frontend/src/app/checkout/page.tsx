@@ -7,6 +7,7 @@ import { useCartStore } from '@/store/cartStore';
 import { useAuthStore } from '@/store/authStore';
 import { ordersAPI, paymentAPI } from '@/lib/api';
 import { toast } from 'react-hot-toast';
+import axios from 'axios';
 
 interface ShippingOption {
   id: string;
@@ -19,6 +20,16 @@ const shippingOptions: ShippingOption[] = [
   { id: 'standard', name: 'Giao hàng tiêu chuẩn', price: 30000, estimatedDays: '5-7 ngày' },
   { id: 'express', name: 'Giao hàng nhanh', price: 50000, estimatedDays: '2-3 ngày' },
 ];
+
+const getAxiosMessage = (error: unknown, fallback = 'Có lỗi xảy ra khi đặt hàng. Vui lòng thử lại.') => {
+  if (axios.isAxiosError(error)) {
+    return error.response?.data?.message || fallback;
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return fallback;
+};
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -224,8 +235,8 @@ export default function CheckoutPage() {
             toast.success('Đặt hàng thành công!');
             router.push(`/checkout/stripe?orderId=${orderId}&amount=${total}`);
             return;
-          } catch (error: any) {
-            if (error.response?.status === 503) {
+          } catch (error) {
+            if (axios.isAxiosError(error) && error.response?.status === 503) {
               toast.error('Thanh toán Stripe chưa được cấu hình. Vui lòng chọn phương thức thanh toán khác.');
               return;
             }
@@ -246,17 +257,20 @@ export default function CheckoutPage() {
       } else {
         throw new Error('Không thể tạo đơn hàng. Vui lòng thử lại.');
       }
-    } catch (error: any) {
+    } catch (error) {
+      const axiosError = axios.isAxiosError(error) ? error : null;
       console.error('Error creating order:', error);
-      console.error('Full error details:', {
-        status: error.response?.status,
-        message: error.response?.data?.message,
-        details: error.response?.data?.details,
-        error: error.message
-      });
+      if (axiosError) {
+        console.error('Full error details:', {
+          status: axiosError.response?.status,
+          message: axiosError.response?.data?.message,
+          details: axiosError.response?.data?.details,
+          error: axiosError.message
+        });
+      }
       
       // Handle specific error cases
-      if (error.response?.status === 401) {
+      if (axiosError?.response?.status === 401) {
         toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', {
           duration: 3000,
         });
@@ -267,10 +281,15 @@ export default function CheckoutPage() {
           router.push('/login');
         }, 2000);
         return; // Important: return early to prevent further execution
-      } else if (error.response?.status === 400) {
-        const errorMessage = error.response?.data?.message || 'Thông tin đơn hàng không hợp lệ';
+      } else if (axiosError?.response?.status === 404) {
+        const errorMessage = axiosError.response?.data?.message || 'Không tìm thấy sản phẩm trong đơn hàng. Vui lòng kiểm tra lại giỏ hàng.';
+        toast.error(errorMessage, { duration: 4000 });
+        router.push('/cart');
+        return;
+      } else if (axiosError?.response?.status === 400) {
+        const errorMessage = axiosError.response?.data?.message || 'Thông tin đơn hàng không hợp lệ';
         toast.error(errorMessage);
-      } else if (error.message === 'Authentication required. Please log in again.') {
+      } else if (error instanceof Error && error.message === 'Authentication required. Please log in again.') {
         toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', {
           duration: 3000,
         });
@@ -280,15 +299,15 @@ export default function CheckoutPage() {
           router.push('/login');
         }, 2000);
         return;
-      } else if (error.response?.status === 500) {
+      } else if (axiosError?.response?.status === 500) {
         // Database or server error
-        const errorMessage = error.response?.data?.message || 'Lỗi cơ sở dữ liệu. Vui lòng thử lại.';
-        const details = error.response?.data?.details;
+        const errorMessage = axiosError.response?.data?.message || 'Lỗi cơ sở dữ liệu. Vui lòng thử lại.';
+        const details = axiosError.response?.data?.details;
         toast.error(details ? `${errorMessage}: ${details}` : errorMessage, {
           duration: 5000,
         });
       } else {
-        const errorMessage = error.response?.data?.message || error.message || 'Có lỗi xảy ra khi đặt hàng. Vui lòng thử lại.';
+        const errorMessage = getAxiosMessage(error);
         toast.error(errorMessage);
       }
     } finally {

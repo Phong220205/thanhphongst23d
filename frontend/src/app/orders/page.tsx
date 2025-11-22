@@ -69,9 +69,9 @@ export default function OrdersPage() {
         if (response.status === 'success') {
           setOrders(response.data);
         }
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error fetching orders:', error);
-        toast.error('Không thể tải danh sách đơn hàng');
+        toast.error(error instanceof Error ? error.message : 'Không thể tải danh sách đơn hàng');
       } finally {
         setLoading(false);
       }

@@ -1,27 +1,82 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, Suspense, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { paymentAPI } from '@/lib/api';
 import { toast } from 'react-hot-toast';
 import Script from 'next/script';
+import axios from 'axios';
 
 declare global {
   interface Window {
-    Stripe: any;
+    Stripe?: StripeConstructor;
   }
 }
+
+interface StripePaymentElement {
+  mount: (selector: string | HTMLElement) => void;
+  unmount: () => void;
+}
+
+interface StripeElements {
+  create: (type: 'payment') => StripePaymentElement;
+}
+
+interface StripeConfirmResult {
+  error?: { message?: string };
+  paymentIntent?: { id: string; status: string };
+}
+
+interface StripeInstance {
+  elements: (options: { clientSecret: string }) => StripeElements;
+  confirmPayment: (options: {
+    elements: StripeElements;
+    confirmParams: { return_url: string };
+    redirect: 'if_required';
+  }) => Promise<StripeConfirmResult>;
+}
+
+type StripeConstructor = (publishableKey: string) => StripeInstance;
+
+const getStripeErrorMessage = (error: unknown, fallback = 'Có lỗi xảy ra khi thanh toán') => {
+  if (axios.isAxiosError(error)) {
+    return error.response?.data?.message || fallback;
+  }
+  if (error instanceof Error) {
+    return error.message || fallback;
+  }
+  return fallback;
+};
 
 function StripeCheckoutContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isAuthenticated } = useAuthStore();
   const [loading, setLoading] = useState(true);
-  const [stripe, setStripe] = useState<any>(null);
+  const [stripe, setStripe] = useState<StripeInstance | null>(null);
   const [clientSecret, setClientSecret] = useState<string>('');
   const orderId = searchParams.get('orderId');
   const amount = searchParams.get('amount');
+
+  const initializePayment = useCallback(async () => {
+    try {
+      const response = await paymentAPI.createIntent({
+        orderId: parseInt(orderId!),
+        amount: parseFloat(amount!)
+      });
+
+      if (response.status === 'success') {
+        setClientSecret(response.clientSecret);
+      }
+    } catch (error) {
+      console.error('Error creating payment intent:', error);
+      toast.error(getStripeErrorMessage(error, 'Không thể khởi tạo thanh toán'));
+      router.push('/checkout');
+    } finally {
+      setLoading(false);
+    }
+  }, [amount, orderId, router]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -36,32 +91,7 @@ function StripeCheckoutContent() {
     }
 
     initializePayment();
-  }, [isAuthenticated, orderId, amount, router]);
-
-  const initializePayment = async () => {
-    try {
-      const response = await paymentAPI.createIntent({
-        orderId: parseInt(orderId!),
-        amount: parseFloat(amount!)
-      });
-
-      if (response.status === 'success') {
-        setClientSecret(response.clientSecret);
-      }
-    } catch (error: any) {
-      console.error('Error creating payment intent:', error);
-      const errorMessage = error.response?.data?.message || 'Không thể khởi tạo thanh toán';
-      toast.error(errorMessage);
-      // If Stripe is not configured, redirect back to checkout
-      if (error.response?.status === 503) {
-        router.push('/checkout');
-      } else {
-        router.push('/checkout');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [isAuthenticated, orderId, amount, router, initializePayment]);
 
   useEffect(() => {
     if (window.Stripe && clientSecret) {
@@ -85,8 +115,9 @@ function StripeCheckoutContent() {
     setLoading(true);
 
     try {
+      const elements = stripe.elements({ clientSecret });
       const { error, paymentIntent } = await stripe.confirmPayment({
-        elements: stripe.elements({ clientSecret }),
+        elements,
         confirmParams: {
           return_url: typeof window !== 'undefined' 
             ? `${window.location.origin}/checkout/success?orderId=${orderId}`
@@ -107,9 +138,9 @@ function StripeCheckoutContent() {
         toast.success('Thanh toán thành công!');
         router.push(`/checkout/success?orderId=${orderId}`);
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Payment error:', error);
-      toast.error('Có lỗi xảy ra khi thanh toán');
+      toast.error(getStripeErrorMessage(error));
       setLoading(false);
     }
   };

@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useCallback } from 'react';
 import { categoriesAPI } from '@/lib/api';
 
 interface Category {
@@ -16,11 +16,7 @@ function ProductsFilterContent() {
   const [search, setSearch] = useState(searchParams.get('search') || '');
   const [categoryId, setCategoryId] = useState(searchParams.get('category') || '');
 
-  useEffect(() => {
-    fetchCategories();
-  }, []);
-
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       const response = await categoriesAPI.getAll();
       if (response.status === 'success') {
@@ -29,7 +25,12 @@ function ProductsFilterContent() {
     } catch (error) {
       console.error('Error fetching categories:', error);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchCategories();
+  }, [fetchCategories]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();

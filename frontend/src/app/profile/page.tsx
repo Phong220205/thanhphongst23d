@@ -7,10 +7,17 @@ import { ordersAPI } from '@/lib/api';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
 
+interface RecentOrder {
+  id: number;
+  total: string;
+  status: string;
+  createdAt: string;
+}
+
 export default function ProfilePage() {
   const router = useRouter();
   const { user, isAuthenticated, logout } = useAuthStore();
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<RecentOrder[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

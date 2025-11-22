@@ -4,7 +4,6 @@ import { useAuthStore } from '@/store/authStore';
 import { useCartStore } from '@/store/cartStore';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
 
 export default function AuthButtons() {
     const router = useRouter();
@@ -13,34 +12,14 @@ export default function AuthButtons() {
     const { isAuthenticated, user, logout } = useAuthStore();
     const totalItems = useCartStore((state) => state.getTotalItems());
 
-    // State isClient để tránh lỗi Hydration Mismatch
-    // (Lỗi server render "Đăng nhập" và client render "Xin chào")
-    const [isClient, setIsClient] = useState(false);
-  
-    useEffect(() => {
-        setIsClient(true); // Đánh dấu là đã ở client-side
-    }, []);
-
     const handleLogout = () => {
         logout();
         router.push('/'); // Chuyển về trang chủ sau khi đăng xuất
-    }
-
-    // --- Render Logic ---
-
-    // Khi ở server hoặc chưa hydrate, hiển thị skeleton (tránh lỗi)
-    if (!isClient) {
-        return (
-            <div className="flex items-center gap-4 animate-pulse">
-                <div className="h-4 w-16 bg-gray-200 rounded"></div>
-                <div className="h-6 w-6 bg-gray-200 rounded-full"></div>
-            </div>
-        );
-    }
+    };
 
     // Khi đã ở client, hiển thị đúng
     return (
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-2 sm:gap-3" suppressHydrationWarning>
             {/* Logic Đăng nhập / Đăng xuất */}
             {isAuthenticated ? (
                 // Đã đăng nhập
@@ -72,6 +51,17 @@ export default function AuthButtons() {
                         </svg>
                         Đăng xuất
                     </button>
+                    {user?.role === 'admin' && (
+                      <Link
+                        href="/admin"
+                        className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold text-indigo-600 hover:bg-indigo-50 transition-colors duration-200"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h18M3 12h18M3 17h18" />
+                        </svg>
+                        Admin
+                      </Link>
+                    )}
                 </>
             ) : (
                 // Chưa đăng nhập

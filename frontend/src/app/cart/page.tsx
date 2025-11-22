@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 
 export default function CartPage() {
-  const { items, removeItem, updateQuantity, getCartTotal, getTotalItems, clearCart } = useCartStore();
+  const { items, removeItem, updateQuantity, getCartTotal, getTotalItems } = useCartStore();
   const { isAuthenticated } = useAuthStore();
   const router = useRouter();
 
